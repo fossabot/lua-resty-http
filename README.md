@@ -217,6 +217,7 @@ The `params` table accepts the following fields:
 * `headers` A table of request headers.
 * `body` The request body as a string, or an iterator function (see [get_client_body_reader](#get_client_body_reader)).
 * `ssl_verify` Verify SSL cert matches hostname
+* `no_default_headers` If set to true - does not set default minimal request headers
 
 When the request is successful, `res` will contain the following fields:
 
