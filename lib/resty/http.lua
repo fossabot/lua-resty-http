@@ -508,16 +508,18 @@ function _M.send_request(self, params)
             headers[k] = v
         end
     end
-    
-    -- Ensure minimal headers are set
-    if type(body) == 'string' and not headers["Content-Length"] then
-        headers["Content-Length"] = #body
-    end
-    if not headers["Host"] then
-        headers["Host"] = self.host
-    end
-    if not headers["User-Agent"] then
-        headers["User-Agent"] = USER_AGENT
+
+    -- Minimal headers are set but can be turned off
+    if not params.no_minimal_headers  then
+        if type(body) == 'string' and not headers["Content-Length"] then
+            headers["Content-Length"] = #body
+        end
+        if not headers["Host"] then
+            headers["Host"] = self.host
+        end
+        if not headers["User-Agent"] then
+            headers["User-Agent"] = USER_AGENT
+        end
     end
     if params.version == 1.0 and not headers["Connection"] then
         headers["Connection"] = "Keep-Alive"
