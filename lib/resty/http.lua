@@ -584,7 +584,8 @@ function _M.read_response(self, params)
     local ok, connection = pcall(str_lower, res_headers["Connection"])
     if ok then
         if  (version == 1.1 and connection == "close") or
-            (version == 1.0 and connection ~= "keep-alive") then
+            (version == 1.0 and connection ~= "keep-alive") or
+            connection ~= "upgrade"  then
             self.keepalive = false
         end
     end
