@@ -1,17 +1,24 @@
-# vim:set ft= ts=4 sw=4 et:
-
 use Test::Nginx::Socket;
 use Cwd qw(cwd);
 
-plan tests => repeat_each() * (blocks() * 4);
+plan tests => repeat_each() * (blocks() * 4) - 1;
 
 my $pwd = cwd();
 
-our $HttpConfig = qq{
-    lua_package_path "$pwd/lib/?.lua;;";
-};
-
 $ENV{TEST_NGINX_RESOLVER} = '8.8.8.8';
+$ENV{TEST_COVERAGE} ||= 0;
+
+our $HttpConfig = qq{
+    lua_package_path "$pwd/lib/?.lua;/usr/local/share/lua/5.1/?.lua;;";
+    error_log logs/error.log debug;
+
+    init_by_lua_block {
+        if $ENV{TEST_COVERAGE} == 1 then
+            jit.off()
+            require("luacov.runner").init()
+        end
+    }
+};
 
 no_long_string();
 #no_diff();
@@ -27,7 +34,7 @@ __DATA__
             local http = require "resty.http"
             local httpc = http.new()
             httpc:connect("127.0.0.1", ngx.var.server_port)
-            
+
             local res, err = httpc:request{
                 path = "/b",
             }
@@ -75,7 +82,7 @@ chunked
             local http = require "resty.http"
             local httpc = http.new()
             httpc:connect("127.0.0.1", ngx.var.server_port)
-            
+
             local res, err = httpc:request{
                 path = "/b",
             }
@@ -118,6 +125,55 @@ nil
 [warn]
 
 
+=== TEST 2b: Non-Chunked streaming body reader, buffer size becomes nil
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require "resty.http"
+            local httpc = http.new()
+            httpc:connect("127.0.0.1", ngx.var.server_port)
+
+            local res, err = httpc:request{
+                path = "/b",
+            }
+
+            local chunks = {}
+            local buffer_size = 16384
+            repeat
+                local chunk = res.body_reader(buffer_size)
+                if chunk then
+                    table.insert(chunks, chunk)
+                end
+
+                buffer_size = nil
+            until not chunk
+
+            local body = table.concat(chunks)
+            ngx.say(res.headers["Transfer-Encoding"])
+
+            httpc:close()
+        ';
+    }
+    location = /b {
+        chunked_transfer_encoding off;
+        content_by_lua '
+            local len = 32768
+            local t = {}
+            for i=1,len do
+                t[i] = 0
+            end
+            ngx.print(table.concat(t))
+        ';
+    }
+--- request
+GET /a
+--- response_body
+nil
+--- error_log
+Buffer size not specified, bailing
+
+
 === TEST 3: HTTP 1.0 body reader with no max size returns the right content length.
 --- http_config eval: $::HttpConfig
 --- config
@@ -126,7 +182,7 @@ nil
             local http = require "resty.http"
             local httpc = http.new()
             httpc:connect("127.0.0.1", ngx.var.server_port)
-            
+
             local res, err = httpc:request{
                 path = "/b",
                 version = 1.0,
@@ -178,7 +234,7 @@ nil
             local http = require "resty.http"
             local httpc = http.new()
             httpc:connect("127.0.0.1", ngx.var.server_port)
-            
+
             local res, err = httpc:request{
                 path = "/b",
                 version = 1.0,
@@ -232,7 +288,7 @@ nil
             local http = require "resty.http"
             local httpc = http.new()
             httpc:connect("127.0.0.1", ngx.var.server_port)
-            
+
             local res, err = httpc:request{
                 path = "/b",
                 version = 1.0,
@@ -295,7 +351,7 @@ GET /a
             local http = require "resty.http"
             local httpc = http.new()
             httpc:connect("127.0.0.1", ngx.var.server_port)
-            
+
             local res, err = httpc:request{
                 path = "/b",
             }
@@ -444,7 +500,7 @@ foobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarba
 --- no_error_log
 [error]
 [warn]
-            
+
 
 === TEST 9: Body reader is a function returning nil when no body is present.
 --- http_config eval: $::HttpConfig

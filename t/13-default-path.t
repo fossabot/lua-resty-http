@@ -1,7 +1,7 @@
 use Test::Nginx::Socket;
 use Cwd qw(cwd);
 
-plan tests => repeat_each() * (blocks() * 4);
+plan tests => repeat_each() * (blocks() * 3);
 
 my $pwd = cwd();
 
@@ -26,39 +26,32 @@ no_long_string();
 run_tests();
 
 __DATA__
-=== TEST 1: Issue a notice (but do not error) if trying to read the request body in a subrequest
+=== TEST 1: request_uri (check the default path)
 --- http_config eval: $::HttpConfig
 --- config
-    location = /a {
-        echo_location /b;
-    }
-    location = /b {
+    location /lua {
         content_by_lua '
             local http = require "resty.http"
             local httpc = http.new()
-            httpc:connect("127.0.0.1", ngx.var.server_port)
 
-            local res, err = httpc:request{
-                path = "/c",
-                headers = {
-                    ["Content-Type"] = "application/x-www-form-urlencoded",
-                }
-            }
-            if not res then
-                ngx.say(err)
+            local res, err = httpc:request_uri("http://127.0.0.1:"..ngx.var.server_port)
+
+            if res and 200 == res.status then
+                ngx.say("OK")
+            else
+                ngx.say("FAIL")
             end
-            ngx.print(res:read_body())
-            httpc:close()
         ';
     }
-    location /c {
-        echo "OK";
+
+    location =/ {
+        content_by_lua '
+            ngx.print("OK")
+        ';
     }
 --- request
-GET /a
+GET /lua
 --- response_body
 OK
 --- no_error_log
 [error]
-[warn]
-
