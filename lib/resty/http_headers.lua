@@ -1,8 +1,8 @@
 local   rawget, rawset, setmetatable =
-        rawget, rawset, setmetatable
+rawget, rawset, setmetatable
 
-local str_find, str_lower, str_sub =
-      string.find, string.lower, string.sub
+local str_lower, str_gsub =
+string.lower, string.gsub
 
 
 local _M = {
@@ -11,27 +11,7 @@ local _M = {
 
 
 local function hyphenate(k)
-    local k_hyphened = ""
-    local match = false
-    local prev_pos = 0
-
-    repeat
-        local pos = str_find(k, "_", prev_pos, true)
-        if pos then
-            match = true
-            k_hyphened =  k_hyphened .. str_sub(k, prev_pos, pos - 1) .. "-"
-        elseif match == false then
-            -- Didn't find an underscore and first check
-            return k
-        else
-            -- No more underscores, append the rest of the key
-            k_hyphened = k_hyphened .. str_sub(k, prev_pos)
-            break
-        end
-        prev_pos = pos + 1
-    until not pos
-
-    return k_hyphened
+    return str_gsub(k, "_", "-")
 end
 
 
@@ -41,8 +21,9 @@ end
 -- headers.content_length
 -- headers["content-length"]
 -- headers["Content-Length"]
-function _M.new(self)
+function _M.new(self, opt)
     local mt = {
+        allow_underscores = opt and opt.allow_underscores or false,
         normalised = {},
     }
 
@@ -66,8 +47,9 @@ function _M.new(self)
         local k_normalised = str_lower(k_hyphened)
 
         if not mt.normalised[k_normalised] then
-            mt.normalised[k_normalised] = k_hyphened
-            rawset(t, k_hyphened, v)
+            local header_name = mt.allow_underscores and k or  k_hyphened
+            mt.normalised[k_normalised] = header_name
+            rawset(t, header_name, v)
         else
             rawset(t, mt.normalised[k_normalised], v)
         end

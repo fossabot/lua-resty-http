@@ -306,8 +306,8 @@ local function _receive_status(sock)
 end
 
 
-local function _receive_headers(sock)
-    local headers = http_headers.new()
+local function _receive_headers(sock, opt)
+    local headers = http_headers:new(opt)
 
     repeat
         local line, err = sock:receive("*l")
@@ -494,9 +494,9 @@ local function _read_body(res)
 end
 
 
-local function _trailer_reader(sock)
+local function _trailer_reader(sock, opt)
     return co_wrap(function()
-        co_yield(_receive_headers(sock))
+        co_yield(_receive_headers(sock, opt))
     end)
 end
 
@@ -563,7 +563,7 @@ function _M.send_request(self, params)
 
     local sock = self.sock
     local body = params.body
-    local headers = http_headers.new()
+    local headers = http_headers:new(params)
 
     local params_headers = params.headers
     if params_headers then
@@ -655,7 +655,7 @@ function _M.read_response(self, params)
     end
 
 
-    local res_headers, err = _receive_headers(sock)
+    local res_headers, err = _receive_headers(sock, params)
     if not res_headers then
         return nil, err
     end
@@ -695,7 +695,7 @@ function _M.read_response(self, params)
     end
 
     if res_headers["Trailer"] then
-        trailer_reader, err = _trailer_reader(sock)
+        trailer_reader, err = _trailer_reader(sock, params)
     end
 
     if err then
