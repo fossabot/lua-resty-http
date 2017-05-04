@@ -23,7 +23,7 @@ end
 -- headers["Content-Length"]
 function _M.new(self, opt)
     local mt = {
-        allow_underscores = opt and opt.allow_underscores or false,
+        header_names_unchanged = opt and opt.header_names_unchanged or false,
         normalised = {},
     }
 
@@ -47,7 +47,7 @@ function _M.new(self, opt)
         local k_normalised = str_lower(k_hyphened)
 
         if not mt.normalised[k_normalised] then
-            local header_name = mt.allow_underscores and k or  k_hyphened
+            local header_name = mt.header_names_unchanged and k or k_hyphened
             mt.normalised[k_normalised] = header_name
             rawset(t, header_name, v)
         else
